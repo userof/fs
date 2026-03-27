@@ -1,0 +1,271 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileManager.ViewModels"
+             xmlns:views="using:FileManager.Views"
+             xmlns:models="using:FileManager.Models"
+             xmlns:conv="using:FileManager.Converters"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="500"
+             x:Class="FileManager.Views.FilePanelView"
+             x:DataType="vm:FilePanelViewModel">
+
+    <UserControl.Resources>
+        <conv:FileSizeConverter x:Key="FileSizeConverter" />
+        <conv:FileIconConverter x:Key="FileIconConverter" />
+    </UserControl.Resources>
+
+    <Border Background="#0a0a1e" CornerRadius="4" Margin="3,3"
+            BorderBrush="#20ffffff" BorderThickness="1"
+            ClipToBounds="True">
+        <DockPanel>
+            <!-- Navigation bar -->
+            <Border DockPanel.Dock="Top" Background="#15ffffff" Padding="4,4"
+                    BorderBrush="#10ffffff" BorderThickness="0,0,0,1">
+                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+                    <Button Grid.Column="0" Classes="nav"
+                            Content="&#xE72B;" FontFamily="Segoe MDL2 Assets"
+                            Command="{Binding GoBackCommand}" ToolTip.Tip="Back"
+                            Margin="0,0,2,0" />
+                    <Button Grid.Column="1" Classes="nav"
+                            Content="&#xE74A;" FontFamily="Segoe MDL2 Assets"
+                            Command="{Binding GoUpCommand}" ToolTip.Tip="Up"
+                            Margin="0,0,2,0" />
+                    <Button Grid.Column="2" Classes="nav"
+                            Content="&#xE72C;" FontFamily="Segoe MDL2 Assets"
+                            Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh"
+                            Margin="0,0,4,0" />
+                    <ComboBox Grid.Column="3" Classes="styled"
+                              ItemsSource="{Binding Drives}"
+                              SelectedItem="{Binding SelectedDrive}"
+                              Width="110" Margin="0,0,4,0" FontSize="11">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:QuickAccessItem">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBox Grid.Column="4" Classes="address"
+                             Text="{Binding AddressBarPath}"
+                             KeyDown="AddressBar_KeyDown"
+                             Margin="0,0,4,0" />
+                    <Button Grid.Column="5" Classes="close"
+                            Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                            Command="{Binding $parent[views:LevelView].((vm:LevelViewModel)DataContext).RemovePanelCommand}"
+                            CommandParameter="{Binding}"
+                            ToolTip.Tip="Close panel" />
+                </Grid>
+            </Border>
+
+            <!-- Rename inline bar -->
+            <Border DockPanel.Dock="Bottom" IsVisible="{Binding IsRenaming}"
+                    Background="#1e1e38" Padding="6,4"
+                    BorderBrush="#10ffffff" BorderThickness="0,1,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Classes="label" Text="Rename:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBox Classes="address" Text="{Binding RenameText}" Width="200" Margin="0,0,4,0"
+                             KeyDown="RenameBox_KeyDown" x:Name="RenameBox" />
+                    <Button Classes="accent" Content="OK" Command="{Binding ConfirmRenameCommand}" Padding="10,3" Margin="0,0,2,0" />
+                    <Button Classes="toolbar" Content="Cancel" Command="{Binding CancelRenameCommand}" Padding="10,3" />
+                </StackPanel>
+            </Border>
+
+            <!-- New folder inline bar -->
+            <Border DockPanel.Dock="Bottom" IsVisible="{Binding IsCreatingFolder}"
+                    Background="#1e1e38" Padding="6,4"
+                    BorderBrush="#10ffffff" BorderThickness="0,1,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Classes="label" Text="New Folder:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBox Classes="address" Text="{Binding NewFolderName}" Width="200" Margin="0,0,4,0"
+                             KeyDown="NewFolderBox_KeyDown" x:Name="NewFolderBox" />
+                    <Button Classes="accent" Content="OK" Command="{Binding ConfirmNewFolderCommand}" Padding="10,3" Margin="0,0,2,0" />
+                    <Button Classes="toolbar" Content="Cancel" Command="{Binding CancelNewFolderCommand}" Padding="10,3" />
+                </StackPanel>
+            </Border>
+
+            <!-- Column headers (clickable for sorting) -->
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="28,3*,*,*,60"
+                  Background="#1e1e38" Height="26">
+                <Button Grid.Column="0" Content="&#xE712;" FontFamily="Segoe MDL2 Assets"
+                        Background="Transparent" BorderThickness="0"
+                        Foreground="#8888aa" FontSize="11"
+                        Padding="0" Margin="0" MinWidth="0" MinHeight="0"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Cursor="Hand" ToolTip.Tip="Folder menu"
+                        Click="FolderMenu_Click" x:Name="FolderMenuButton">
+                    <Button.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                            <MenuItem Header="New Folder"
+                                      Command="{Binding StartNewFolderCommand}" />
+                            <MenuItem Header="Paste"
+                                      Command="{Binding PasteCommand}" />
+                            <Separator />
+                            <MenuItem Header="Windows Shell Menu"
+                                      Click="FolderShellMenu_Click" />
+                            <Separator />
+                            <MenuItem Header="Open in Explorer"
+                                      Command="{Binding OpenInExplorerCommand}" />
+                            <MenuItem Header="Open in Terminal"
+                                      Command="{Binding OpenTerminalCommand}" />
+                            <MenuItem Header="Open in VS Code"
+                                      Command="{Binding OpenVSCodeCommand}" />
+                            <MenuItem Header="Copy Folder Path"
+                                      Command="{Binding CopyFolderPathCommand}" />
+                            <MenuItem Header="Properties"
+                                      Command="{Binding ShowFolderPropertiesCommand}" />
+                            <Separator />
+                            <MenuItem Header="Refresh"
+                                      Command="{Binding RefreshCommand}" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+                <Button Grid.Column="1" Content="{Binding NameHeader}"
+                        Command="{Binding SortByCommand}" CommandParameter="Name"
+                        Background="Transparent" BorderThickness="0"
+                        Foreground="#8888aa" FontSize="11" FontWeight="SemiBold"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                        Padding="8,0" Margin="0" MinHeight="0" Height="26"
+                        Cursor="Hand" />
+                <Button Grid.Column="2" Content="{Binding SizeHeader}"
+                        Command="{Binding SortByCommand}" CommandParameter="Size"
+                        Background="Transparent" BorderThickness="0"
+                        Foreground="#8888aa" FontSize="11" FontWeight="SemiBold"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                        Padding="4,0" Margin="0" MinHeight="0" Height="26"
+                        Cursor="Hand" />
+                <Button Grid.Column="3" Content="{Binding ModifiedHeader}"
+                        Command="{Binding SortByCommand}" CommandParameter="Modified"
+                        Background="Transparent" BorderThickness="0"
+                        Foreground="#8888aa" FontSize="11" FontWeight="SemiBold"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                        Padding="4,0" Margin="0" MinHeight="0" Height="26"
+                        Cursor="Hand" />
+                <Button Grid.Column="4" Content="{Binding ExtHeader}"
+                        Command="{Binding SortByCommand}" CommandParameter="Ext"
+                        Background="Transparent" BorderThickness="0"
+                        Foreground="#8888aa" FontSize="11" FontWeight="SemiBold"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                        Padding="4,0" Margin="0" MinHeight="0" Height="26"
+                        Cursor="Hand" />
+            </Grid>
+
+            <!-- File list (virtualized) -->
+            <ListBox ItemsSource="{Binding Items}"
+                     SelectedItem="{Binding SelectedItem}"
+                     DoubleTapped="DataGrid_DoubleTapped"
+                     SelectionMode="Single"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     DragDrop.AllowDrop="True"
+                     x:Name="FileGrid">
+
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Open"
+                                  Command="{Binding OpenCommand}"
+                                  CommandParameter="{Binding SelectedItem}"
+                                  InputGesture="Enter" />
+                        <Separator />
+                        <MenuItem Header="Cut"
+                                  Command="{Binding CutCommand}"
+                                  InputGesture="Ctrl+X" />
+                        <MenuItem Header="Copy"
+                                  Command="{Binding CopyCommand}"
+                                  InputGesture="Ctrl+C" />
+                        <MenuItem Header="Paste"
+                                  Command="{Binding PasteCommand}"
+                                  InputGesture="Ctrl+V" />
+                        <Separator />
+                        <MenuItem Header="Copy Path"
+                                  Command="{Binding CopyPathCommand}" />
+                        <Separator />
+                        <MenuItem Header="Rename"
+                                  Command="{Binding StartRenameCommand}"
+                                  InputGesture="F2" />
+                        <MenuItem Header="Delete"
+                                  Command="{Binding DeleteCommand}"
+                                  InputGesture="Delete" />
+                        <Separator />
+                        <MenuItem Header="New Folder"
+                                  Command="{Binding StartNewFolderCommand}" />
+                        <Separator />
+                        <MenuItem Header="Windows Shell Menu"
+                                  Click="ShellMenu_Click" />
+                        <Separator />
+                        <MenuItem Header="Open in Explorer"
+                                  Command="{Binding OpenInExplorerCommand}" />
+                        <MenuItem Header="Properties"
+                                  Command="{Binding ShowPropertiesCommand}" />
+                    </ContextMenu>
+                </ListBox.ContextMenu>
+
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Margin" Value="0" />
+                        <Setter Property="MinHeight" Value="0" />
+                        <Setter Property="Height" Value="26" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#252548" />
+                    </Style>
+                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#1a3a5c" />
+                    </Style>
+                </ListBox.Styles>
+
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:FileItem">
+                        <Grid ColumnDefinitions="28,3*,*,*,60" Height="26">
+                            <!-- Priority icon -->
+                            <Button Grid.Column="0"
+                                    Content="{Binding PriorityIcon}"
+                                    Command="{Binding $parent[views:FilePanelView].((vm:FilePanelViewModel)DataContext).CyclePriorityCommand}"
+                                    CommandParameter="{Binding}"
+                                    Background="Transparent" BorderThickness="0"
+                                    Padding="0" Margin="0"
+                                    MinWidth="0" MinHeight="0"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    FontSize="12" Cursor="Hand"
+                                    Opacity="{Binding Priority, Converter={x:Static conv:PriorityOpacityConverter.Instance}}" />
+                            <!-- Name + icon -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                        VerticalAlignment="Center" Margin="4,0">
+                                <Image Source="{Binding Converter={StaticResource FileIconConverter}}"
+                                       Width="16" Height="16" Margin="0,0,6,0"
+                                       RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                           Foreground="#e0e0f0" FontSize="12"
+                                           TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                            <!-- Size -->
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding Size, Converter={StaticResource FileSizeConverter}}"
+                                       VerticalAlignment="Center" Margin="4,0"
+                                       Foreground="#9999bb" FontSize="11" />
+                            <!-- Modified -->
+                            <TextBlock Grid.Column="3"
+                                       Text="{Binding LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
+                                       VerticalAlignment="Center" Margin="4,0"
+                                       Foreground="#9999bb" FontSize="11" />
+                            <!-- Ext -->
+                            <TextBlock Grid.Column="4"
+                                       Text="{Binding Extension}"
+                                       VerticalAlignment="Center" Margin="4,0"
+                                       Foreground="#9999bb" FontSize="11" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+    </Border>
+</UserControl>

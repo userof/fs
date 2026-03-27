@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileManager.ViewModels"
+             xmlns:views="using:FileManager.Views"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             x:Class="FileManager.Views.LevelView"
+             x:DataType="vm:LevelViewModel">
+
+    <Border Background="#0dffffff" CornerRadius="6" Margin="0,0,0,4"
+            BorderBrush="#18ffffff" BorderThickness="1"
+            ClipToBounds="True">
+        <DockPanel>
+            <!-- Level header -->
+            <Border DockPanel.Dock="Top"
+                    Background="#18ffffff"
+                    Padding="6,3"
+                    BorderBrush="#10ffffff"
+                    BorderThickness="0,0,0,1">
+                <StackPanel Orientation="Horizontal">
+                    <Button Classes="toolbar" Content="+ Panel" Command="{Binding AddPanelCommand}"
+                            Padding="8,3" FontSize="11" Margin="0,0,8,0" />
+                    <Button Classes="danger"
+                            Content="Remove Level"
+                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveLevelCommand}"
+                            CommandParameter="{Binding}"
+                            Padding="8,3" FontSize="11" />
+                </StackPanel>
+            </Border>
+
+            <!-- Panels in this level (horizontal) -->
+            <ItemsControl ItemsSource="{Binding Panels}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FilePanelViewModel">
+                        <views:FilePanelView />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </DockPanel>
+    </Border>
+</UserControl>

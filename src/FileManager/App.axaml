@@ -1,0 +1,144 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FileManager.App"
+             xmlns:local="using:FileManager"
+             RequestedThemeVariant="Dark">
+
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
+
+    <Application.Styles>
+        <FluentTheme />
+        <!-- Global custom styles -->
+        <Style Selector="Window">
+            <Setter Property="Background" Value="#1a1a2e" />
+        </Style>
+
+        <!-- Toolbar buttons -->
+        <Style Selector="Button.toolbar">
+            <Setter Property="Background" Value="#2d2d44" />
+            <Setter Property="Foreground" Value="#e0e0e0" />
+            <Setter Property="BorderBrush" Value="#3d3d5c" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="Button.toolbar:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#3a3a5c" />
+        </Style>
+        <Style Selector="Button.toolbar:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#4a4a6c" />
+        </Style>
+
+        <!-- Accent button -->
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="#0f3460" />
+            <Setter Property="Foreground" Value="#e0e0e0" />
+            <Setter Property="BorderBrush" Value="#16498a" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#16498a" />
+        </Style>
+
+        <!-- Danger button -->
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#e74c5e" />
+            <Setter Property="BorderBrush" Value="#4a2030" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#3a1525" />
+        </Style>
+
+        <!-- Nav button (small icon buttons in panel toolbar) -->
+        <Style Selector="Button.nav">
+            <Setter Property="Background" Value="#2a2a40" />
+            <Setter Property="Foreground" Value="#b0b0c8" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="7,5" />
+            <Setter Property="MinWidth" Value="30" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.nav:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#3a3a5c" />
+            <Setter Property="Foreground" Value="#ffffff" />
+        </Style>
+        <Style Selector="Button.nav:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#4a4a6c" />
+        </Style>
+
+        <!-- Close panel button -->
+        <Style Selector="Button.close">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#804050" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="7,5" />
+            <Setter Property="MinWidth" Value="30" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.close:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#3a1525" />
+            <Setter Property="Foreground" Value="#e74c5e" />
+        </Style>
+
+        <!-- TextBox styling -->
+        <Style Selector="TextBox.address">
+            <Setter Property="Background" Value="#16162a" />
+            <Setter Property="Foreground" Value="#d0d0e0" />
+            <Setter Property="BorderBrush" Value="#3d3d5c" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="6,4" />
+        </Style>
+        <Style Selector="TextBox.address:focus">
+            <Setter Property="BorderBrush" Value="#5580aa" />
+        </Style>
+
+        <!-- ComboBox styling -->
+        <Style Selector="ComboBox.styled">
+            <Setter Property="Background" Value="#2a2a40" />
+            <Setter Property="Foreground" Value="#d0d0e0" />
+            <Setter Property="BorderBrush" Value="#3d3d5c" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+
+        <!-- Context menu -->
+        <Style Selector="ContextMenu">
+            <Setter Property="Background" Value="#222240" />
+            <Setter Property="BorderBrush" Value="#3d3d5c" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="2" />
+        </Style>
+        <Style Selector="MenuItem">
+            <Setter Property="Foreground" Value="#d0d0e0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="8,5" />
+        </Style>
+        <Style Selector="MenuItem:pointerover /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="#2a3a5c" />
+        </Style>
+
+        <!-- TextBlock default -->
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="#8888aa" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+
+    </Application.Styles>
+</Application>

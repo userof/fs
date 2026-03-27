@@ -1,0 +1,80 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FileManager.ViewModels"
+        xmlns:views="using:FileManager.Views"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="700"
+        x:Class="FileManager.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="File Manager" Width="1200" Height="700"
+        MinWidth="600" MinHeight="400"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="PreferSystemChrome"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent">
+
+    <Panel>
+        <!-- Acrylic background -->
+        <ExperimentalAcrylicBorder IsHitTestVisible="False">
+            <ExperimentalAcrylicBorder.Material>
+                <ExperimentalAcrylicMaterial BackgroundSource="Digger"
+                    TintColor="#1a1a2e"
+                    TintOpacity="0.92"
+                    MaterialOpacity="0.8" />
+            </ExperimentalAcrylicBorder.Material>
+        </ExperimentalAcrylicBorder>
+
+        <DockPanel Margin="0,30,0,0">
+            <!-- Top toolbar -->
+            <Border DockPanel.Dock="Top"
+                    Background="#cc1e1e38"
+                    Padding="8,6"
+                    BorderBrush="#33ffffff"
+                    BorderThickness="0,0,0,1">
+                <WrapPanel>
+                    <Button Classes="accent" Content="+ Add Level" Command="{Binding AddLevelCommand}"
+                            Margin="0,0,10,0" />
+
+                    <Border Width="1" Height="22" Background="#33ffffff" Margin="0,0,10,0" />
+
+                    <!-- Profile management -->
+                    <TextBlock Classes="label" Text="Profile:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <ComboBox Classes="styled" ItemsSource="{Binding Profiles}"
+                              SelectedItem="{Binding SelectedProfile}"
+                              Width="170" Margin="0,0,4,0"
+                              PlaceholderText="Select profile...">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Classes="toolbar" Content="Load" Command="{Binding LoadProfileCommand}" Margin="0,0,4,0" />
+                    <Button Classes="danger" Content="Delete" Command="{Binding DeleteProfileCommand}" Margin="0,0,10,0" />
+
+                    <Border Width="1" Height="22" Background="#33ffffff" Margin="0,0,10,0" />
+
+                    <TextBox Classes="address" Text="{Binding NewProfileName}" Width="150"
+                             Watermark="Profile name..." Margin="0,0,4,0" />
+                    <Button Classes="accent" Content="Save" Command="{Binding SaveProfileCommand}" />
+                </WrapPanel>
+            </Border>
+
+            <!-- Levels stacked vertically -->
+            <ItemsControl ItemsSource="{Binding Levels}" Margin="4,4,4,4">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="1" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:LevelViewModel">
+                        <views:LevelView />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </DockPanel>
+    </Panel>
+</Window>
