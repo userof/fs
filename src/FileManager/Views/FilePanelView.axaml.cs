@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.VisualTree;
 using FileManager.Models;
 using FileManager.ViewModels;
 
@@ -23,6 +26,8 @@ public partial class FilePanelView : UserControl
 
         FileGrid.AddHandler(DragDrop.DropEvent, OnDrop);
         FileGrid.AddHandler(DragDrop.DragOverEvent, OnDragOver);
+
+        GotFocus += OnPanelGotFocus;
     }
 
     protected override void OnLoaded(RoutedEventArgs e)
@@ -125,6 +130,44 @@ public partial class FilePanelView : UserControl
     {
         if (sender is Button btn)
             btn.Flyout?.ShowAt(btn);
+    }
+
+    private void OnPanelGotFocus(object? sender, GotFocusEventArgs e)
+    {
+        // Deactivate all other panels in the window
+        var window = this.FindAncestorOfType<MainWindow>();
+        if (window == null) return;
+
+        DeactivateAllPanels(window);
+
+        if (DataContext is FilePanelViewModel vm)
+            vm.IsActive = true;
+
+        PanelBorder.Classes.Add("active");
+    }
+
+    private static void DeactivateAllPanels(Visual root)
+    {
+        foreach (var panel in FindDescendants<FilePanelView>(root))
+        {
+            if (panel.DataContext is FilePanelViewModel vm)
+                vm.IsActive = false;
+            panel.PanelBorder.Classes.Remove("active");
+        }
+    }
+
+    private static IEnumerable<T> FindDescendants<T>(Visual root) where T : Visual
+    {
+        foreach (var child in root.GetVisualChildren())
+        {
+            if (child is T match)
+                yield return match;
+            if (child is Visual v)
+            {
+                foreach (var desc in FindDescendants<T>(v))
+                    yield return desc;
+            }
+        }
     }
 
     private void DataGrid_DoubleTapped(object? sender, TappedEventArgs e)

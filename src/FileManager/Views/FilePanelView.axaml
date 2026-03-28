@@ -16,8 +16,17 @@
     </UserControl.Resources>
 
     <Border Background="#0a0a1e" CornerRadius="4" Margin="3,3"
-            BorderBrush="#20ffffff" BorderThickness="1"
-            ClipToBounds="True">
+            BorderThickness="1"
+            ClipToBounds="True"
+            x:Name="PanelBorder">
+        <Border.Styles>
+            <Style Selector="Border#PanelBorder">
+                <Setter Property="BorderBrush" Value="#20ffffff" />
+            </Style>
+            <Style Selector="Border#PanelBorder.active">
+                <Setter Property="BorderBrush" Value="#6090d0" />
+            </Style>
+        </Border.Styles>
         <DockPanel>
             <!-- Navigation bar -->
             <Border DockPanel.Dock="Top" Background="#15ffffff" Padding="4,4"

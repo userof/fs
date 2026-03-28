@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:FileManager.ViewModels"
         xmlns:views="using:FileManager.Views"
+        xmlns:models="using:FileManager.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="700"
@@ -33,33 +34,77 @@
                     Padding="8,6"
                     BorderBrush="#33ffffff"
                     BorderThickness="0,0,0,1">
-                <WrapPanel>
-                    <Button Classes="accent" Content="+ Add Level" Command="{Binding AddLevelCommand}"
-                            Margin="0,0,10,0" />
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Classes="accent" Content="+ Add Level" Command="{Binding AddLevelCommand}"
+                                Margin="0,0,10,0" />
 
-                    <Border Width="1" Height="22" Background="#33ffffff" Margin="0,0,10,0" />
+                        <Border Width="1" Height="22" Background="#33ffffff" Margin="0,0,10,0" />
 
-                    <!-- Profile management -->
-                    <TextBlock Classes="label" Text="Profile:" VerticalAlignment="Center" Margin="0,0,6,0" />
-                    <ComboBox Classes="styled" ItemsSource="{Binding Profiles}"
-                              SelectedItem="{Binding SelectedProfile}"
-                              Width="170" Margin="0,0,4,0"
-                              PlaceholderText="Select profile...">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Name}" />
+                        <!-- Profile management -->
+                        <TextBlock Classes="label" Text="Profile:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox Classes="styled" ItemsSource="{Binding Profiles}"
+                                  SelectedItem="{Binding SelectedProfile}"
+                                  Width="170" Margin="0,0,4,0"
+                                  PlaceholderText="Select profile...">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Classes="toolbar" Content="Load" Command="{Binding LoadProfileCommand}" Margin="0,0,4,0" />
+                        <Button Classes="danger" Content="Delete" Command="{Binding DeleteProfileCommand}" Margin="0,0,10,0" />
+
+                        <Border Width="1" Height="22" Background="#33ffffff" Margin="0,0,10,0" />
+
+                        <TextBox Classes="address" Text="{Binding NewProfileName}" Width="150"
+                                 Watermark="Profile name..." Margin="0,0,4,0" />
+                        <Button Classes="accent" Content="Save" Command="{Binding SaveProfileCommand}"
+                                Margin="0,0,6,0" />
+
+                        <Border Width="1" Height="22" Background="#33ffffff" Margin="0,0,6,0" />
+                    </StackPanel>
+
+                    <!-- Opened files icons (right of Save button) -->
+                    <ItemsControl ItemsSource="{Binding OpenedFiles}" VerticalAlignment="Center"
+                                  ClipToBounds="True">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:StarredFileItem">
+                                <Button Background="Transparent" BorderThickness="0"
+                                        Padding="2,1" Margin="0"
+                                        MinWidth="0" MinHeight="0"
+                                        Cursor="Hand"
+                                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenOpenedFileCommand}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="{Binding FullPath}">
+                                    <Image Source="{Binding Icon}"
+                                           Width="16" Height="16"
+                                           RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Open"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenOpenedFileCommand}"
+                                                      CommandParameter="{Binding}" />
+                                            <MenuItem Header="Show in Explorer"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowInExplorerCommand}"
+                                                      CommandParameter="{Binding}" />
+                                            <Separator />
+                                            <MenuItem Header="Remove"
+                                                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveOpenedFileCommand}"
+                                                      CommandParameter="{Binding}" />
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
                             </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <Button Classes="toolbar" Content="Load" Command="{Binding LoadProfileCommand}" Margin="0,0,4,0" />
-                    <Button Classes="danger" Content="Delete" Command="{Binding DeleteProfileCommand}" Margin="0,0,10,0" />
-
-                    <Border Width="1" Height="22" Background="#33ffffff" Margin="0,0,10,0" />
-
-                    <TextBox Classes="address" Text="{Binding NewProfileName}" Width="150"
-                             Watermark="Profile name..." Margin="0,0,4,0" />
-                    <Button Classes="accent" Content="Save" Command="{Binding SaveProfileCommand}" />
-                </WrapPanel>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
             </Border>
 
             <!-- Levels stacked vertically -->

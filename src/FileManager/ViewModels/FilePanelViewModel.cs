@@ -18,6 +18,9 @@ public partial class FilePanelViewModel : ViewModelBase
     private readonly Stack<string> _history = new();
 
     [ObservableProperty]
+    private bool _isActive;
+
+    [ObservableProperty]
     private string _currentPath = string.Empty;
 
     [ObservableProperty]
@@ -128,6 +131,8 @@ public partial class FilePanelViewModel : ViewModelBase
             AddressBarPath = CurrentPath;
     }
 
+    public static event Action<FileItem>? FileOpened;
+
     [RelayCommand]
     private void Open(FileItem? item)
     {
@@ -135,7 +140,14 @@ public partial class FilePanelViewModel : ViewModelBase
         if (item.IsDirectory)
             NavigateTo(item.FullPath);
         else
-            _fileSystemService.OpenFile(item.FullPath);
+        {
+            try
+            {
+                _fileSystemService.OpenFile(item.FullPath);
+            }
+            catch (Exception) { }
+            FileOpened?.Invoke(item);
+        }
     }
 
     [RelayCommand]

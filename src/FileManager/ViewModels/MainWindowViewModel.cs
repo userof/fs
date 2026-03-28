@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -26,6 +27,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private string _newProfileName = string.Empty;
 
+    [ObservableProperty]
+    private ObservableCollection<StarredFileItem> _openedFiles = new();
+
     public MainWindowViewModel()
         : this(new FileSystemService(), new ProfileService(), new PriorityService()) { }
 
@@ -34,8 +38,50 @@ public partial class MainWindowViewModel : ViewModelBase
         _fileSystemService = fileSystemService;
         _profileService = profileService;
         _priorityService = priorityService;
+        FilePanelViewModel.FileOpened += OnFileOpened;
         LoadProfiles();
         RestoreLastState();
+    }
+
+    private void OnFileOpened(FileItem item)
+    {
+        // If already there, remove it so we can re-insert at front
+        var existing = OpenedFiles.FirstOrDefault(f => string.Equals(f.FullPath, item.FullPath, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+            OpenedFiles.Remove(existing);
+
+        OpenedFiles.Insert(0, new StarredFileItem
+        {
+            Name = item.Name,
+            FullPath = item.FullPath,
+            IsDirectory = item.IsDirectory
+        });
+
+        while (OpenedFiles.Count > 20)
+            OpenedFiles.RemoveAt(OpenedFiles.Count - 1);
+    }
+
+    [RelayCommand]
+    private void OpenOpenedFile(StarredFileItem? item)
+    {
+        if (item == null) return;
+        try { _fileSystemService.OpenFile(item.FullPath); }
+        catch (Exception) { }
+    }
+
+    [RelayCommand]
+    private void ShowInExplorer(StarredFileItem? item)
+    {
+        if (item == null) return;
+        try { _fileSystemService.OpenInExplorerAndSelect(item.FullPath); }
+        catch (Exception) { }
+    }
+
+    [RelayCommand]
+    private void RemoveOpenedFile(StarredFileItem? item)
+    {
+        if (item == null) return;
+        OpenedFiles.Remove(item);
     }
 
     private string GetLastPath()
@@ -125,6 +171,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (lastState != null && lastState.Levels.Count > 0)
         {
             ApplyProfile(lastState);
+            RestoreOpenedFiles(lastState.OpenedFiles);
         }
         else
         {
@@ -147,7 +194,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 {
                     CurrentPath = p.CurrentPath
                 }).ToList()
-            }).ToList()
+            }).ToList(),
+            OpenedFiles = OpenedFiles.Select(f => f.FullPath).ToList()
         };
     }
 
@@ -182,6 +230,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (Levels.Count == 0)
             AddLevel();
+    }
+
+    private void RestoreOpenedFiles(List<string> paths)
+    {
+        OpenedFiles.Clear();
+        foreach (var path in paths)
+        {
+            var item = StarredFileItem.FromPath(path);
+            if (item != null)
+                OpenedFiles.Add(item);
+        }
     }
 
     private void LoadProfiles()

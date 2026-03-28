@@ -48,11 +48,28 @@ public class PriorityService : IPriorityService
         return result;
     }
 
+    public event Action? StarredChanged;
+
+    public List<string> GetAllStarred()
+    {
+        lock (_lock)
+        {
+            return _priorities
+                .Where(kvp => kvp.Value == 2)
+                .Select(kvp => kvp.Key)
+                .ToList();
+        }
+    }
+
     public void SetPriority(string filePath, int priority)
     {
         var key = Normalize(filePath);
+        bool wasStarred, isStarred;
         lock (_lock)
         {
+            wasStarred = _priorities.TryGetValue(key, out var old) && old == 2;
+            isStarred = priority == 2;
+
             if (priority == 0)
                 _priorities.Remove(key);
             else
@@ -62,6 +79,9 @@ public class PriorityService : IPriorityService
 
         _saveTimer?.Dispose();
         _saveTimer = new Timer(_ => FlushSave(), null, 500, Timeout.Infinite);
+
+        if (wasStarred != isStarred)
+            StarredChanged?.Invoke();
     }
 
     public void FlushSave()
