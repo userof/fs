@@ -176,10 +176,39 @@ public partial class FilePanelView : UserControl
             vm.OpenCommand.Execute(vm.SelectedItem);
     }
 
+    private void Breadcrumb_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is FilePanelViewModel vm)
+        {
+            vm.IsEditingAddress = true;
+            // Focus the address box after it becomes visible
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                AddressBox.Focus();
+                AddressBox.SelectAll();
+            }, Avalonia.Threading.DispatcherPriority.Background);
+        }
+    }
+
     private void AddressBar_KeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter && DataContext is FilePanelViewModel vm)
-            vm.NavigateToAddressCommand.Execute(null);
+        {
+            vm.FinishEditAddressCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape && DataContext is FilePanelViewModel vm2)
+        {
+            vm2.AddressBarPath = vm2.CurrentPath;
+            vm2.IsEditingAddress = false;
+            e.Handled = true;
+        }
+    }
+
+    private void AddressBar_LostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is FilePanelViewModel vm && vm.IsEditingAddress)
+            vm.FinishEditAddressCommand.Execute(null);
     }
 
     private void RenameBox_KeyDown(object? sender, KeyEventArgs e)

@@ -38,6 +38,12 @@ public partial class FilePanelViewModel : ViewModelBase
     [ObservableProperty]
     private string _addressBarPath = string.Empty;
 
+    [ObservableProperty]
+    private ObservableCollection<BreadcrumbItem> _breadcrumbs = new();
+
+    [ObservableProperty]
+    private bool _isEditingAddress;
+
     private static string? _clipboardPath;
     private static bool _clipboardIsDirectory;
     private static bool _clipboardIsCut;
@@ -91,8 +97,48 @@ public partial class FilePanelViewModel : ViewModelBase
 
         CurrentPath = path;
         AddressBarPath = path;
+        UpdateBreadcrumbs(path);
         LoadDirectory(path);
         GoBackCommand.NotifyCanExecuteChanged();
+    }
+
+    private void UpdateBreadcrumbs(string path)
+    {
+        var items = new List<BreadcrumbItem>();
+        var dir = new System.IO.DirectoryInfo(path);
+        while (dir != null)
+        {
+            items.Insert(0, new BreadcrumbItem
+            {
+                Name = dir.Parent == null ? dir.FullName : dir.Name,
+                FullPath = dir.FullName
+            });
+            dir = dir.Parent;
+        }
+        Breadcrumbs = new ObservableCollection<BreadcrumbItem>(items);
+    }
+
+    [RelayCommand]
+    private void NavigateToBreadcrumb(BreadcrumbItem? item)
+    {
+        if (item != null)
+            NavigateTo(item.FullPath);
+    }
+
+    [RelayCommand]
+    private void StartEditAddress()
+    {
+        IsEditingAddress = true;
+    }
+
+    [RelayCommand]
+    private void FinishEditAddress()
+    {
+        IsEditingAddress = false;
+        if (_fileSystemService.DirectoryExists(AddressBarPath))
+            NavigateTo(AddressBarPath);
+        else
+            AddressBarPath = CurrentPath;
     }
 
     [RelayCommand(CanExecute = nameof(CanGoBack))]

@@ -54,10 +54,50 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    <TextBox Grid.Column="4" Classes="address"
-                             Text="{Binding AddressBarPath}"
-                             KeyDown="AddressBar_KeyDown"
-                             Margin="0,0,4,0" />
+                    <!-- Breadcrumb / Address bar (dual mode) -->
+                    <Panel Grid.Column="4" Margin="0,0,4,0">
+                        <!-- Breadcrumb mode -->
+                        <Border Background="#10ffffff" CornerRadius="3"
+                                Padding="2,0"
+                                IsVisible="{Binding !IsEditingAddress}"
+                                PointerPressed="Breadcrumb_PointerPressed"
+                                Cursor="Hand">
+                            <ItemsControl ItemsSource="{Binding Breadcrumbs}"
+                                          VerticalAlignment="Center">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:BreadcrumbItem">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="{Binding Name}"
+                                                    Command="{Binding $parent[views:FilePanelView].((vm:FilePanelViewModel)DataContext).NavigateToBreadcrumbCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="Transparent" BorderThickness="0"
+                                                    Padding="4,2" Margin="0"
+                                                    MinWidth="0" MinHeight="0"
+                                                    FontSize="11" Foreground="#c0c0e0"
+                                                    Cursor="Hand" />
+                                            <TextBlock Text="&#xE76C;"
+                                                       FontFamily="Segoe MDL2 Assets"
+                                                       FontSize="8" Foreground="#6666aa"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,0,0" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                        <!-- Edit mode -->
+                        <TextBox Classes="address"
+                                 Text="{Binding AddressBarPath}"
+                                 KeyDown="AddressBar_KeyDown"
+                                 LostFocus="AddressBar_LostFocus"
+                                 IsVisible="{Binding IsEditingAddress}"
+                                 x:Name="AddressBox" />
+                    </Panel>
                     <Button Grid.Column="5" Classes="close"
                             Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
                             Command="{Binding $parent[views:LevelView].((vm:LevelViewModel)DataContext).RemovePanelCommand}"
