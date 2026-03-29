@@ -69,6 +69,12 @@ public partial class FilePanelViewModel : ViewModelBase
     private List<FileItem> _allItems = new();
 
     [ObservableProperty]
+    private bool _isStatusBarVisible;
+
+    [ObservableProperty]
+    private string _statusText = string.Empty;
+
+    [ObservableProperty]
     private SortColumn _sortColumn = SortColumn.Name;
 
     [ObservableProperty]
@@ -184,6 +190,12 @@ public partial class FilePanelViewModel : ViewModelBase
         {
             FilterText = string.Empty;
         }
+    }
+
+    [RelayCommand]
+    private void ToggleStatusBar()
+    {
+        IsStatusBarVisible = !IsStatusBarVisible;
     }
 
     [RelayCommand]
@@ -519,6 +531,49 @@ public partial class FilePanelViewModel : ViewModelBase
             : _allItems.Where(i => i.Name.Contains(FilterText, StringComparison.OrdinalIgnoreCase)).ToList();
         var sorted = SortItems(filtered);
         Items = new ObservableCollection<FileItem>(sorted);
+        UpdateStatusText();
+    }
+
+    partial void OnSelectedItemChanged(FileItem? value)
+    {
+        UpdateStatusText();
+    }
+
+    private void UpdateStatusText()
+    {
+        var totalItems = _allItems.Count;
+        var shownItems = Items.Count;
+        var dirs = Items.Count(i => i.IsDirectory);
+        var files = Items.Count(i => !i.IsDirectory);
+
+        var parts = new List<string>();
+
+        if (shownItems != totalItems)
+            parts.Add($"{shownItems}/{totalItems} items");
+        else
+            parts.Add($"{totalItems} items");
+
+        parts.Add($"{dirs} folders, {files} files");
+
+        if (SelectedItem != null && !SelectedItem.IsDirectory)
+            parts.Add($"Selected: {FormatSize(SelectedItem.Size)}");
+
+        try
+        {
+            var driveInfo = new System.IO.DriveInfo(System.IO.Path.GetPathRoot(CurrentPath)!);
+            parts.Add($"Free: {FormatSize(driveInfo.AvailableFreeSpace)}");
+        }
+        catch { }
+
+        StatusText = string.Join("  |  ", parts);
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        if (bytes < 1024L * 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
+        return $"{bytes / (1024.0 * 1024 * 1024):F2} GB";
     }
 
     private void ResortItems()

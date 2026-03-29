@@ -31,7 +31,7 @@
             <!-- Navigation bar -->
             <Border DockPanel.Dock="Top" Background="#15ffffff" Padding="4,4"
                     BorderBrush="#10ffffff" BorderThickness="0,0,0,1">
-                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto">
+                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto">
                     <Button Grid.Column="0" Classes="nav"
                             Content="&#xE72B;" FontFamily="Segoe MDL2 Assets"
                             Command="{Binding GoBackCommand}" ToolTip.Tip="Back"
@@ -100,14 +100,27 @@
                     </Panel>
                     <Button Grid.Column="5" Classes="nav"
                             Content="&#xE721;" FontFamily="Segoe MDL2 Assets"
-                            Command="{Binding ToggleFilterCommand}" ToolTip.Tip="Filter (Ctrl+F)"
+                            Command="{Binding ToggleFilterCommand}" ToolTip.Tip="Filter"
                             Margin="0,0,2,0" />
-                    <Button Grid.Column="6" Classes="close"
+                    <Button Grid.Column="6" Classes="nav"
+                            Content="&#xE946;" FontFamily="Segoe MDL2 Assets"
+                            Command="{Binding ToggleStatusBarCommand}" ToolTip.Tip="Status bar"
+                            Margin="0,0,2,0" />
+                    <Button Grid.Column="7" Classes="close"
                             Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
                             Command="{Binding $parent[views:LevelView].((vm:LevelViewModel)DataContext).RemovePanelCommand}"
                             CommandParameter="{Binding}"
                             ToolTip.Tip="Close panel" />
                 </Grid>
+            </Border>
+
+            <!-- Status bar -->
+            <Border DockPanel.Dock="Bottom" Background="#10ffffff" Padding="6,2"
+                    BorderBrush="#10ffffff" BorderThickness="0,1,0,0"
+                    IsVisible="{Binding IsStatusBarVisible}">
+                <TextBlock Text="{Binding StatusText}"
+                           Foreground="#7777aa" FontSize="10"
+                           VerticalAlignment="Center" />
             </Border>
 
             <!-- Rename inline bar -->

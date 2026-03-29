@@ -194,7 +194,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 {
                     CurrentPath = p.CurrentPath,
                     IsFilterVisible = p.IsFilterVisible,
-                    FilterText = p.FilterText
+                    FilterText = p.FilterText,
+                    IsStatusBarVisible = p.IsStatusBarVisible
                 }).ToList()
             }).ToList(),
             OpenedFiles = OpenedFiles.Select(f => f.FullPath).ToList()
@@ -219,6 +220,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 panel.NavigateTo(path);
                 panel.IsFilterVisible = panelState.IsFilterVisible;
                 panel.FilterText = panelState.FilterText;
+                panel.IsStatusBarVisible = panelState.IsStatusBarVisible;
                 level.Panels.Add(panel);
             }
 
