@@ -192,7 +192,9 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 Panels = l.Panels.Select(p => new PanelState
                 {
-                    CurrentPath = p.CurrentPath
+                    CurrentPath = p.CurrentPath,
+                    IsFilterVisible = p.IsFilterVisible,
+                    FilterText = p.FilterText
                 }).ToList()
             }).ToList(),
             OpenedFiles = OpenedFiles.Select(f => f.FullPath).ToList()
@@ -215,6 +217,8 @@ public partial class MainWindowViewModel : ViewModelBase
                     path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
                 panel.NavigateTo(path);
+                panel.IsFilterVisible = panelState.IsFilterVisible;
+                panel.FilterText = panelState.FilterText;
                 level.Panels.Add(panel);
             }
 

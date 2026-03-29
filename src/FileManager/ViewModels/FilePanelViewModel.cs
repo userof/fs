@@ -61,6 +61,14 @@ public partial class FilePanelViewModel : ViewModelBase
     private string _newFolderName = string.Empty;
 
     [ObservableProperty]
+    private bool _isFilterVisible;
+
+    [ObservableProperty]
+    private string _filterText = string.Empty;
+
+    private List<FileItem> _allItems = new();
+
+    [ObservableProperty]
     private SortColumn _sortColumn = SortColumn.Name;
 
     [ObservableProperty]
@@ -166,6 +174,16 @@ public partial class FilePanelViewModel : ViewModelBase
     private void Refresh()
     {
         LoadDirectory(CurrentPath);
+    }
+
+    [RelayCommand]
+    private void ToggleFilter()
+    {
+        IsFilterVisible = !IsFilterVisible;
+        if (!IsFilterVisible)
+        {
+            FilterText = string.Empty;
+        }
     }
 
     [RelayCommand]
@@ -473,6 +491,11 @@ public partial class FilePanelViewModel : ViewModelBase
             NavigateTo(value.Path);
     }
 
+    partial void OnFilterTextChanged(string value)
+    {
+        ApplyFilterAndSort();
+    }
+
     private void LoadDirectory(string path)
     {
         var rawItems = _fileSystemService.GetDirectoryContents(path);
@@ -485,17 +508,23 @@ public partial class FilePanelViewModel : ViewModelBase
             item.Priority = priorities.TryGetValue(key, out var p) ? p : 0;
         }
 
-        var sorted = SortItems(rawItems);
+        _allItems = rawItems.ToList();
+        ApplyFilterAndSort();
+    }
 
-        // Replace collection in one shot
+    private void ApplyFilterAndSort()
+    {
+        var filtered = string.IsNullOrEmpty(FilterText)
+            ? _allItems
+            : _allItems.Where(i => i.Name.Contains(FilterText, StringComparison.OrdinalIgnoreCase)).ToList();
+        var sorted = SortItems(filtered);
         Items = new ObservableCollection<FileItem>(sorted);
     }
 
     private void ResortItems()
     {
         var selected = SelectedItem;
-        var sorted = SortItems(Items);
-        Items = new ObservableCollection<FileItem>(sorted);
+        ApplyFilterAndSort();
         SelectedItem = selected;
     }
 
