@@ -2,11 +2,12 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
-using System;
 using System.Linq;
 using Avalonia.Markup.Xaml;
+using FileManager.Services;
 using FileManager.ViewModels;
 using FileManager.Views;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FileManager;
 
@@ -23,7 +24,10 @@ public partial class App : Application
         {
             DisableAvaloniaDataAnnotationValidation();
 
-            var vm = new MainWindowViewModel();
+            // Configure DI
+            AppServices.Configure();
+
+            var vm = AppServices.Get<MainWindowViewModel>();
             desktop.MainWindow = new MainWindow
             {
                 DataContext = vm,

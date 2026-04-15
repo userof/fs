@@ -13,6 +13,9 @@ public partial class FileItem : ObservableObject
     public DateTime LastModified { get; init; }
     public string Extension => IsDirectory ? "" : Path.GetExtension(Name);
 
+    /// <summary>Number of direct children (files+folders) for directories, -1 for files.</summary>
+    public int ChildCount { get; init; } = -1;
+
     // 0 = none, 1 = like (on top), 2 = star (topper than like)
     [ObservableProperty]
     private int _priority;

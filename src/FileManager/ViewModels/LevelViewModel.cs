@@ -13,7 +13,7 @@ public partial class LevelViewModel : ViewModelBase
     private readonly IPriorityService _priorityService;
 
     [ObservableProperty]
-    private ObservableCollection<FilePanelViewModel> _panels = new();
+    private ObservableCollection<TabPanelViewModel> _panels = new();
 
     public LevelViewModel(IFileSystemService fileSystemService, IPriorityService priorityService)
     {
@@ -24,14 +24,14 @@ public partial class LevelViewModel : ViewModelBase
     [RelayCommand]
     private void AddPanel()
     {
-        var panel = new FilePanelViewModel(_fileSystemService, _priorityService);
+        var tabPanel = new TabPanelViewModel(_fileSystemService, _priorityService);
         var lastPath = Panels.LastOrDefault()?.CurrentPath;
-        panel.NavigateTo(lastPath ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-        Panels.Add(panel);
+        tabPanel.AddInitialTab(lastPath ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+        Panels.Add(tabPanel);
     }
 
     [RelayCommand]
-    private void RemovePanel(FilePanelViewModel? panel)
+    private void RemovePanel(TabPanelViewModel? panel)
     {
         if (panel != null && Panels.Count > 1)
             Panels.Remove(panel);

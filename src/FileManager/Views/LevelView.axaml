@@ -37,8 +37,8 @@
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:FilePanelViewModel">
-                        <views:FilePanelView />
+                    <DataTemplate x:DataType="vm:TabPanelViewModel">
+                        <views:TabPanelView />
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

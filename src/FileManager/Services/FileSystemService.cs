@@ -22,13 +22,18 @@ public class FileSystemService : IFileSystemService
             {
                 try
                 {
+                    int childCount = -1;
+                    try { childCount = dir.GetFileSystemInfos().Length; }
+                    catch { /* permission denied etc */ }
+
                     items.Add(new FileItem
                     {
                         Name = dir.Name,
                         FullPath = dir.FullName,
                         IsDirectory = true,
                         Size = 0,
-                        LastModified = dir.LastWriteTime
+                        LastModified = dir.LastWriteTime,
+                        ChildCount = childCount
                     });
                 }
                 catch (UnauthorizedAccessException) { }
@@ -68,8 +73,8 @@ public class FileSystemService : IFileSystemService
         AddFolder(items, "Videos", Environment.SpecialFolder.MyVideos);
         AddFolder(items, "User", Environment.SpecialFolder.UserProfile);
 
-        // Separator-like empty item
-        items.Add(new QuickAccessItem { Name = "───────", Path = "" });
+        // Separator
+        items.Add(new QuickAccessItem { Name = "───────", Path = "", IsSeparator = true });
 
         // Drives
         foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady))

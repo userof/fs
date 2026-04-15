@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -17,6 +20,9 @@ public partial class FilePanelViewModel : ViewModelBase
     private readonly IPriorityService _priorityService;
     private readonly Stack<string> _history = new();
 
+    // ── All items (unfiltered) and displayed items ──
+    private List<FileItem> _allItems = new();
+
     [ObservableProperty]
     private bool _isActive;
 
@@ -28,6 +34,9 @@ public partial class FilePanelViewModel : ViewModelBase
 
     [ObservableProperty]
     private FileItem? _selectedItem;
+
+    /// <summary>Multi-select: synced from code-behind SelectionChanged.</summary>
+    public List<FileItem> SelectedItems { get; } = new();
 
     [ObservableProperty]
     private ObservableCollection<QuickAccessItem> _drives = new();
@@ -44,10 +53,6 @@ public partial class FilePanelViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isEditingAddress;
 
-    private static string? _clipboardPath;
-    private static bool _clipboardIsDirectory;
-    private static bool _clipboardIsCut;
-
     [ObservableProperty]
     private bool _isRenaming;
 
@@ -60,13 +65,12 @@ public partial class FilePanelViewModel : ViewModelBase
     [ObservableProperty]
     private string _newFolderName = string.Empty;
 
+    // ── Sorting ──
     [ObservableProperty]
     private bool _isFilterVisible;
 
     [ObservableProperty]
     private string _filterText = string.Empty;
-
-    private List<FileItem> _allItems = new();
 
     [ObservableProperty]
     private bool _isStatusBarVisible;
@@ -80,9 +84,8 @@ public partial class FilePanelViewModel : ViewModelBase
     [ObservableProperty]
     private bool _sortAscending = true;
 
-    // Header display texts with sort indicators
     [ObservableProperty]
-    private string _nameHeader = "Name \u25B2";
+    private string _nameHeader = "Name ▲";
 
     [ObservableProperty]
     private string _sizeHeader = "Size";
@@ -93,6 +96,50 @@ public partial class FilePanelViewModel : ViewModelBase
     [ObservableProperty]
     private string _extHeader = "Ext";
 
+    // ── Error display ──
+    [ObservableProperty]
+    private string _errorMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasError;
+
+    private Timer? _errorTimer;
+
+    // ── Preview pane ──
+    [ObservableProperty]
+    private bool _showPreview;
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _previewImage;
+
+    [ObservableProperty]
+    private string _previewName = string.Empty;
+
+    [ObservableProperty]
+    private string _previewDetails = string.Empty;
+
+    [ObservableProperty]
+    private string _previewText = string.Empty;
+
+    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".ico", ".webp", ".tiff", ".tif"
+    };
+
+    private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".txt", ".md", ".cs", ".js", ".ts", ".json", ".xml", ".html", ".css",
+        ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".log", ".sh", ".bat",
+        ".cmd", ".ps1", ".py", ".rb", ".java", ".c", ".cpp", ".h", ".hpp",
+        ".rs", ".go", ".sql", ".csv", ".env", ".gitignore", ".editorconfig",
+        ".csproj", ".sln", ".slnx", ".axaml", ".xaml", ".razor", ".vue", ".svelte"
+    };
+
+    // ── FileSystemWatcher ──
+    private FileSystemWatcher? _watcher;
+    private Timer? _watcherDebounce;
+    private readonly object _watcherLock = new();
+
     public FilePanelViewModel(IFileSystemService fileSystemService, IPriorityService priorityService)
     {
         _fileSystemService = fileSystemService;
@@ -100,6 +147,8 @@ public partial class FilePanelViewModel : ViewModelBase
         foreach (var loc in _fileSystemService.GetQuickAccessLocations())
             Drives.Add(loc);
     }
+
+    // ── Navigation ──
 
     public void NavigateTo(string path)
     {
@@ -111,6 +160,7 @@ public partial class FilePanelViewModel : ViewModelBase
 
         CurrentPath = path;
         AddressBarPath = path;
+        IsEditingAddress = false;
         UpdateBreadcrumbs(path);
         LoadDirectory(path);
         GoBackCommand.NotifyCanExecuteChanged();
@@ -119,7 +169,7 @@ public partial class FilePanelViewModel : ViewModelBase
     private void UpdateBreadcrumbs(string path)
     {
         var items = new List<BreadcrumbItem>();
-        var dir = new System.IO.DirectoryInfo(path);
+        var dir = new DirectoryInfo(path);
         while (dir != null)
         {
             items.Insert(0, new BreadcrumbItem
@@ -162,6 +212,8 @@ public partial class FilePanelViewModel : ViewModelBase
         var prev = _history.Pop();
         CurrentPath = prev;
         AddressBarPath = prev;
+        IsEditingAddress = false;
+        UpdateBreadcrumbs(prev);
         LoadDirectory(prev);
         GoBackCommand.NotifyCanExecuteChanged();
     }
@@ -177,7 +229,7 @@ public partial class FilePanelViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void Refresh()
+    public void Refresh()
     {
         LoadDirectory(CurrentPath);
     }
@@ -202,9 +254,15 @@ public partial class FilePanelViewModel : ViewModelBase
     private void NavigateToAddress()
     {
         if (_fileSystemService.DirectoryExists(AddressBarPath))
+        {
+            IsEditingAddress = false;
             NavigateTo(AddressBarPath);
+        }
         else
+        {
+            ShowError($"Path not found: {AddressBarPath}");
             AddressBarPath = CurrentPath;
+        }
     }
 
     public static event Action<FileItem>? FileOpened;
@@ -225,6 +283,8 @@ public partial class FilePanelViewModel : ViewModelBase
             FileOpened?.Invoke(item);
         }
     }
+
+    // ── Sorting ──
 
     [RelayCommand]
     private void SortBy(string columnName)
@@ -252,12 +312,14 @@ public partial class FilePanelViewModel : ViewModelBase
 
     private void UpdateHeaders()
     {
-        var asc = SortAscending ? " \u25B2" : " \u25BC";
+        var asc = SortAscending ? " ▲" : " ▼";
         NameHeader = SortColumn == SortColumn.Name ? "Name" + asc : "Name";
         SizeHeader = SortColumn == SortColumn.Size ? "Size" + asc : "Size";
         ModifiedHeader = SortColumn == SortColumn.Modified ? "Modified" + asc : "Modified";
         ExtHeader = SortColumn == SortColumn.Extension ? "Ext" + asc : "Ext";
     }
+
+    // ── Priority ──
 
     [RelayCommand]
     private void CyclePriority(FileItem? item)
@@ -269,43 +331,54 @@ public partial class FilePanelViewModel : ViewModelBase
         ResortItems();
     }
 
+    // ── Multi-select clipboard operations (OS interop) ──
+
     [RelayCommand]
-    private void Copy()
+    private async Task Copy()
     {
-        if (SelectedItem == null) return;
-        _clipboardPath = SelectedItem.FullPath;
-        _clipboardIsDirectory = SelectedItem.IsDirectory;
-        _clipboardIsCut = false;
+        var selected = GetEffectiveSelection();
+        if (selected.Count == 0) return;
+        var paths = selected.Select(i => i.FullPath);
+        await ClipboardService.CopyFiles(paths, isCut: false);
     }
 
     [RelayCommand]
-    private void Cut()
+    private async Task Cut()
     {
-        if (SelectedItem == null) return;
-        _clipboardPath = SelectedItem.FullPath;
-        _clipboardIsDirectory = SelectedItem.IsDirectory;
-        _clipboardIsCut = true;
+        var selected = GetEffectiveSelection();
+        if (selected.Count == 0) return;
+        var paths = selected.Select(i => i.FullPath);
+        await ClipboardService.CopyFiles(paths, isCut: true);
     }
 
     [RelayCommand]
-    private void Paste()
+    private async Task Paste()
     {
-        if (string.IsNullOrEmpty(_clipboardPath)) return;
+        var (paths, isCut) = await ClipboardService.GetFiles();
+        if (paths.Count == 0) return;
 
-        try
+        int success = 0;
+        foreach (var path in paths)
         {
-            if (_clipboardIsCut)
+            var isDir = Directory.Exists(path);
+            try
             {
-                _fileSystemService.MoveTo(_clipboardPath, CurrentPath, _clipboardIsDirectory);
-                _clipboardPath = null;
+                if (isCut)
+                    _fileSystemService.MoveTo(path, CurrentPath, isDir);
+                else
+                    _fileSystemService.CopyTo(path, CurrentPath, isDir);
+                success++;
             }
-            else
+            catch (Exception ex)
             {
-                _fileSystemService.CopyTo(_clipboardPath, CurrentPath, _clipboardIsDirectory);
+                ShowError($"Failed: {Path.GetFileName(path)}: {ex.Message}");
             }
-            Refresh();
         }
-        catch (Exception) { }
+
+        if (isCut && success > 0)
+            ClipboardService.ClearIfCut();
+
+        Refresh();
     }
 
     public void DropCopy(string sourcePath, bool isDirectory)
@@ -315,7 +388,7 @@ public partial class FilePanelViewModel : ViewModelBase
             _fileSystemService.CopyTo(sourcePath, CurrentPath, isDirectory);
             Refresh();
         }
-        catch (Exception) { }
+        catch (Exception ex) { ShowError($"Copy failed: {ex.Message}"); }
     }
 
     public void DropMove(string sourcePath, bool isDirectory)
@@ -325,20 +398,34 @@ public partial class FilePanelViewModel : ViewModelBase
             _fileSystemService.MoveTo(sourcePath, CurrentPath, isDirectory);
             Refresh();
         }
-        catch (Exception) { }
+        catch (Exception ex) { ShowError($"Move failed: {ex.Message}"); }
     }
+
+    // ── Delete (multi-select) ──
 
     [RelayCommand]
     private void Delete()
     {
-        if (SelectedItem == null) return;
-        try
+        var selected = GetEffectiveSelection();
+        if (selected.Count == 0) return;
+
+        int fail = 0;
+        foreach (var item in selected)
         {
-            _fileSystemService.Delete(SelectedItem.FullPath, SelectedItem.IsDirectory);
-            Refresh();
+            try
+            {
+                _fileSystemService.Delete(item.FullPath, item.IsDirectory);
+            }
+            catch (Exception ex)
+            {
+                fail++;
+                ShowError($"Delete failed: {item.Name}: {ex.Message}");
+            }
         }
-        catch (Exception) { }
+        Refresh();
     }
+
+    // ── Rename ──
 
     [RelayCommand]
     private void StartRename()
@@ -363,8 +450,9 @@ public partial class FilePanelViewModel : ViewModelBase
             IsRenaming = false;
             Refresh();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            ShowError($"Rename failed: {ex.Message}");
             CancelRename();
         }
     }
@@ -375,6 +463,8 @@ public partial class FilePanelViewModel : ViewModelBase
         IsRenaming = false;
         RenameText = string.Empty;
     }
+
+    // ── New Folder ──
 
     [RelayCommand]
     private void StartNewFolder()
@@ -398,8 +488,9 @@ public partial class FilePanelViewModel : ViewModelBase
             IsCreatingFolder = false;
             Refresh();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            ShowError($"Create folder failed: {ex.Message}");
             CancelNewFolder();
         }
     }
@@ -413,11 +504,13 @@ public partial class FilePanelViewModel : ViewModelBase
 
     // ── Shell context menu ──
 
-    public void ShowWindowsContextMenu(string path, int screenX, int screenY)
+    public void ShowWindowsContextMenu(string[] paths, int screenX, int screenY)
     {
         if (!OperatingSystem.IsWindows()) return;
         var hwnd = GetMainWindowHandle();
-        ShellContextMenuService.ShowContextMenu(path, hwnd, screenX, screenY);
+        // Show for first item (COM multi-select is complex)
+        if (paths.Length > 0)
+            ShellContextMenuService.ShowContextMenu(paths[0], hwnd, screenX, screenY);
     }
 
     public void ShowFolderWindowsContextMenu(int screenX, int screenY)
@@ -437,20 +530,22 @@ public partial class FilePanelViewModel : ViewModelBase
         return IntPtr.Zero;
     }
 
-    // ── File operations ──
+    // ── Open in ... ──
 
     [RelayCommand]
     private void OpenTerminal()
     {
         var path = SelectedItem is { IsDirectory: true } ? SelectedItem.FullPath : CurrentPath;
-        _fileSystemService.OpenTerminal(path);
+        try { _fileSystemService.OpenTerminal(path); }
+        catch (Exception ex) { ShowError($"Terminal failed: {ex.Message}"); }
     }
 
     [RelayCommand]
     private void OpenVSCode()
     {
         var path = SelectedItem is { IsDirectory: true } ? SelectedItem.FullPath : CurrentPath;
-        _fileSystemService.OpenVSCode(path);
+        try { _fileSystemService.OpenVSCode(path); }
+        catch (Exception ex) { ShowError($"VS Code failed: {ex.Message}"); }
     }
 
     [RelayCommand]
@@ -470,18 +565,18 @@ public partial class FilePanelViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void CopyPath()
+    private async Task CopyPath()
     {
-        if (SelectedItem == null) return;
-        var clipboard = GetClipboard();
-        clipboard?.SetTextAsync(SelectedItem.FullPath);
+        var selected = GetEffectiveSelection();
+        if (selected.Count == 0) return;
+        var text = string.Join(Environment.NewLine, selected.Select(i => i.FullPath));
+        await ClipboardService.CopyText(text);
     }
 
     [RelayCommand]
-    private void CopyFolderPath()
+    private async Task CopyFolderPath()
     {
-        var clipboard = GetClipboard();
-        clipboard?.SetTextAsync(CurrentPath);
+        await ClipboardService.CopyText(CurrentPath);
     }
 
     [RelayCommand]
@@ -490,23 +585,151 @@ public partial class FilePanelViewModel : ViewModelBase
         _fileSystemService.ShowProperties(CurrentPath);
     }
 
-    private static Avalonia.Input.Platform.IClipboard? GetClipboard()
+    // ── Preview pane ──
+
+    [RelayCommand]
+    private void TogglePreview()
     {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            return desktop.MainWindow?.Clipboard;
-        return null;
+        ShowPreview = !ShowPreview;
+        if (ShowPreview)
+            UpdatePreview();
+        else
+            ClearPreview();
     }
 
-    partial void OnSelectedDriveChanged(QuickAccessItem? value)
+    partial void OnSelectedItemChanged(FileItem? value)
     {
-        if (value != null && !string.IsNullOrEmpty(value.Path) && _fileSystemService.DirectoryExists(value.Path))
-            NavigateTo(value.Path);
+        if (ShowPreview)
+            UpdatePreview();
+        UpdateStatus();
     }
+
+    private void UpdatePreview()
+    {
+        ClearPreview();
+
+        var item = SelectedItem;
+        if (item == null) return;
+
+        PreviewName = item.Name;
+
+        if (item.IsDirectory)
+        {
+            PreviewDetails = $"Folder\n{item.ChildCount} items\nModified: {item.LastModified:yyyy-MM-dd HH:mm}";
+            return;
+        }
+
+        // File info
+        PreviewDetails = $"{item.Extension.TrimStart('.')}{(item.Size > 0 ? $" — {FormatSize(item.Size)}" : "")}\nModified: {item.LastModified:yyyy-MM-dd HH:mm}";
+
+        // Image preview
+        var ext = item.Extension.ToLowerInvariant();
+        if (ImageExtensions.Contains(ext))
+        {
+            try
+            {
+                using var stream = File.OpenRead(item.FullPath);
+                PreviewImage = new Avalonia.Media.Imaging.Bitmap(stream);
+            }
+            catch { /* can't read image */ }
+            return;
+        }
+
+        // Text preview
+        if (TextExtensions.Contains(ext) || string.IsNullOrEmpty(ext))
+        {
+            try
+            {
+                if (item.Size < 512_000) // max 500KB
+                {
+                    var lines = File.ReadLines(item.FullPath).Take(50);
+                    PreviewText = string.Join("\n", lines);
+                }
+                else
+                {
+                    PreviewText = "(File too large to preview)";
+                }
+            }
+            catch { /* can't read file */ }
+        }
+    }
+
+    private void ClearPreview()
+    {
+        PreviewImage = null;
+        PreviewName = string.Empty;
+        PreviewDetails = string.Empty;
+        PreviewText = string.Empty;
+    }
+
+    // ── Filter ──
 
     partial void OnFilterTextChanged(string value)
     {
         ApplyFilterAndSort();
     }
+
+    // ── Error display ──
+
+    private void ShowError(string message)
+    {
+        ErrorMessage = message;
+        HasError = true;
+        _errorTimer?.Dispose();
+        _errorTimer = new Timer(_ =>
+        {
+            HasError = false;
+            ErrorMessage = string.Empty;
+        }, null, 4000, Timeout.Infinite);
+    }
+
+    // ── Status bar ──
+
+    public void UpdateStatus()
+    {
+        var totalItems = _allItems.Count;
+        var selectedCount = SelectedItems.Count;
+        var selectedSize = SelectedItems.Where(i => !i.IsDirectory).Sum(i => i.Size);
+
+        if (selectedCount > 0)
+        {
+            var sizeText = selectedSize > 0 ? $" ({FormatSize(selectedSize)})" : "";
+            StatusText = $"{totalItems} items | {selectedCount} selected{sizeText}";
+        }
+        else
+        {
+            StatusText = $"{totalItems} items";
+        }
+    }
+
+    private static string FormatSize(long size)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var order = 0;
+        var s = (double)size;
+        while (s >= 1024 && order < units.Length - 1) { order++; s /= 1024; }
+        return $"{s:0.##} {units[order]}";
+    }
+
+    // ── Helpers ──
+
+    private List<FileItem> GetEffectiveSelection()
+    {
+        if (SelectedItems.Count > 0)
+            return new List<FileItem>(SelectedItems);
+        if (SelectedItem != null)
+            return new List<FileItem> { SelectedItem };
+        return new List<FileItem>();
+    }
+
+    partial void OnSelectedDriveChanged(QuickAccessItem? value)
+    {
+        if (value != null && !value.IsSeparator && !string.IsNullOrEmpty(value.Path)
+            && _fileSystemService.DirectoryExists(value.Path))
+            NavigateTo(value.Path);
+    }
+
+    // ── Directory loading ──
 
     private void LoadDirectory(string path)
     {
@@ -520,60 +743,25 @@ public partial class FilePanelViewModel : ViewModelBase
             item.Priority = priorities.TryGetValue(key, out var p) ? p : 0;
         }
 
-        _allItems = rawItems.ToList();
+        _allItems = new List<FileItem>(rawItems);
         ApplyFilterAndSort();
+        SetupWatcher(path);
     }
 
     private void ApplyFilterAndSort()
     {
-        var filtered = string.IsNullOrEmpty(FilterText)
-            ? _allItems
-            : _allItems.Where(i => i.Name.Contains(FilterText, StringComparison.OrdinalIgnoreCase)).ToList();
+        IEnumerable<FileItem> filtered = _allItems;
+
+        if (!string.IsNullOrWhiteSpace(FilterText))
+        {
+            var filter = FilterText.Trim();
+            filtered = filtered.Where(i =>
+                i.Name.Contains(filter, StringComparison.OrdinalIgnoreCase));
+        }
+
         var sorted = SortItems(filtered);
         Items = new ObservableCollection<FileItem>(sorted);
-        UpdateStatusText();
-    }
-
-    partial void OnSelectedItemChanged(FileItem? value)
-    {
-        UpdateStatusText();
-    }
-
-    private void UpdateStatusText()
-    {
-        var totalItems = _allItems.Count;
-        var shownItems = Items.Count;
-        var dirs = Items.Count(i => i.IsDirectory);
-        var files = Items.Count(i => !i.IsDirectory);
-
-        var parts = new List<string>();
-
-        if (shownItems != totalItems)
-            parts.Add($"{shownItems}/{totalItems} items");
-        else
-            parts.Add($"{totalItems} items");
-
-        parts.Add($"{dirs} folders, {files} files");
-
-        if (SelectedItem != null && !SelectedItem.IsDirectory)
-            parts.Add($"Selected: {FormatSize(SelectedItem.Size)}");
-
-        try
-        {
-            var driveInfo = new System.IO.DriveInfo(System.IO.Path.GetPathRoot(CurrentPath)!);
-            parts.Add($"Free: {FormatSize(driveInfo.AvailableFreeSpace)}");
-        }
-        catch { }
-
-        StatusText = string.Join("  |  ", parts);
-    }
-
-    private static string FormatSize(long bytes)
-    {
-        if (bytes < 1024) return $"{bytes} B";
-        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
-        if (bytes < 1024L * 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
-        return $"{bytes / (1024.0 * 1024 * 1024):F2} GB";
+        UpdateStatus();
     }
 
     private void ResortItems()
@@ -609,5 +797,65 @@ public partial class FilePanelViewModel : ViewModelBase
                   .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase),
             _ => ordered.ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
         };
+    }
+
+    // ── FileSystemWatcher ──
+
+    private void SetupWatcher(string path)
+    {
+        DisposeWatcher();
+
+        try
+        {
+            _watcher = new FileSystemWatcher(path)
+            {
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName
+                             | NotifyFilters.LastWrite | NotifyFilters.Size,
+                EnableRaisingEvents = true,
+                IncludeSubdirectories = false
+            };
+
+            _watcher.Created += OnFileSystemChanged;
+            _watcher.Deleted += OnFileSystemChanged;
+            _watcher.Renamed += OnFileSystemChanged;
+            _watcher.Changed += OnFileSystemChanged;
+            _watcher.Error += (_, _) => DisposeWatcher();
+        }
+        catch
+        {
+            // Some directories can't be watched (network, restricted)
+        }
+    }
+
+    private void OnFileSystemChanged(object sender, FileSystemEventArgs e)
+    {
+        // Debounce: coalesce rapid changes into one refresh
+        lock (_watcherLock)
+        {
+            _watcherDebounce?.Dispose();
+            _watcherDebounce = new Timer(_ =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (CurrentPath == ((FileSystemWatcher)sender).Path)
+                        Refresh();
+                });
+            }, null, 300, Timeout.Infinite);
+        }
+    }
+
+    private void DisposeWatcher()
+    {
+        if (_watcher != null)
+        {
+            _watcher.EnableRaisingEvents = false;
+            _watcher.Dispose();
+            _watcher = null;
+        }
+        lock (_watcherLock)
+        {
+            _watcherDebounce?.Dispose();
+            _watcherDebounce = null;
+        }
     }
 }

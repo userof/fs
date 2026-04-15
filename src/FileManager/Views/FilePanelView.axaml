@@ -8,7 +8,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="500"
              x:Class="FileManager.Views.FilePanelView"
-             x:DataType="vm:FilePanelViewModel">
+             x:DataType="vm:FilePanelViewModel"
+             Focusable="True"
+             KeyDown="Panel_KeyDown">
 
     <UserControl.Resources>
         <conv:FileSizeConverter x:Key="FileSizeConverter" />
@@ -31,18 +33,18 @@
             <!-- Navigation bar -->
             <Border DockPanel.Dock="Top" Background="#15ffffff" Padding="4,4"
                     BorderBrush="#10ffffff" BorderThickness="0,0,0,1">
-                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto">
+                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto">
                     <Button Grid.Column="0" Classes="nav"
                             Content="&#xE72B;" FontFamily="Segoe MDL2 Assets"
-                            Command="{Binding GoBackCommand}" ToolTip.Tip="Back"
+                            Command="{Binding GoBackCommand}" ToolTip.Tip="Back (Backspace)"
                             Margin="0,0,2,0" />
                     <Button Grid.Column="1" Classes="nav"
                             Content="&#xE74A;" FontFamily="Segoe MDL2 Assets"
-                            Command="{Binding GoUpCommand}" ToolTip.Tip="Up"
+                            Command="{Binding GoUpCommand}" ToolTip.Tip="Up (Alt+Up)"
                             Margin="0,0,2,0" />
                     <Button Grid.Column="2" Classes="nav"
                             Content="&#xE72C;" FontFamily="Segoe MDL2 Assets"
-                            Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh"
+                            Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh (F5)"
                             Margin="0,0,4,0" />
                     <ComboBox Grid.Column="3" Classes="styled"
                               ItemsSource="{Binding Drives}"
@@ -106,12 +108,28 @@
                             Content="&#xE946;" FontFamily="Segoe MDL2 Assets"
                             Command="{Binding ToggleStatusBarCommand}" ToolTip.Tip="Status bar"
                             Margin="0,0,2,0" />
-                    <Button Grid.Column="7" Classes="close"
+                    <!-- Preview toggle -->
+                    <Button Grid.Column="7" Classes="nav"
+                            Content="&#xE8A1;" FontFamily="Segoe MDL2 Assets"
+                            Command="{Binding TogglePreviewCommand}"
+                            ToolTip.Tip="Toggle Preview (Ctrl+P)"
+                            Margin="0,0,2,0"
+                            Foreground="{Binding ShowPreview, Converter={x:Static conv:PreviewToggleColorConverter.Instance}}" />
+                    <!-- Close panel/tab button -->
+                    <Button Grid.Column="8" Classes="close"
                             Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
-                            Command="{Binding $parent[views:LevelView].((vm:LevelViewModel)DataContext).RemovePanelCommand}"
+                            Command="{Binding $parent[views:TabPanelView].((vm:TabPanelViewModel)DataContext).CloseTabCommand}"
                             CommandParameter="{Binding}"
-                            ToolTip.Tip="Close panel" />
+                            ToolTip.Tip="Close tab (Ctrl+W)" />
                 </Grid>
+            </Border>
+
+            <!-- Error bar -->
+            <Border DockPanel.Dock="Top" IsVisible="{Binding HasError}"
+                    Background="#44cc4444" Padding="8,4"
+                    BorderBrush="#66cc4444" BorderThickness="0,0,0,1">
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="#ff8888"
+                           FontSize="11" TextTrimming="CharacterEllipsis" />
             </Border>
 
             <!-- Status bar -->
@@ -149,10 +167,11 @@
                 </StackPanel>
             </Border>
 
-            <!-- Column headers (clickable for sorting) -->
-            <Grid DockPanel.Dock="Top" ColumnDefinitions="28,3*,*,*,60"
-                  Background="#1e1e38" Height="26">
-                <Button Grid.Column="0" Content="&#xE712;" FontFamily="Segoe MDL2 Assets"
+            <!-- Column headers + filter -->
+            <Grid DockPanel.Dock="Top" RowDefinitions="26,Auto" ColumnDefinitions="28,3*,*,*,60"
+                  Background="#1e1e38">
+                <!-- Folder menu button -->
+                <Button Grid.Row="0" Grid.Column="0" Content="&#xE712;" FontFamily="Segoe MDL2 Assets"
                         Background="Transparent" BorderThickness="0"
                         Foreground="#8888aa" FontSize="11"
                         Padding="0" Margin="0" MinWidth="0" MinHeight="0"
@@ -185,165 +204,206 @@
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>
-                <Button Grid.Column="1" Content="{Binding NameHeader}"
+
+                <!-- Sort buttons -->
+                <Button Grid.Row="0" Grid.Column="1" Content="{Binding NameHeader}"
                         Command="{Binding SortByCommand}" CommandParameter="Name"
                         Background="Transparent" BorderThickness="0"
                         Foreground="#8888aa" FontSize="11" FontWeight="SemiBold"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                         Padding="8,0" Margin="0" MinHeight="0" Height="26"
                         Cursor="Hand" />
-                <Button Grid.Column="2" Content="{Binding SizeHeader}"
+                <Button Grid.Row="0" Grid.Column="2" Content="{Binding SizeHeader}"
                         Command="{Binding SortByCommand}" CommandParameter="Size"
                         Background="Transparent" BorderThickness="0"
                         Foreground="#8888aa" FontSize="11" FontWeight="SemiBold"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                         Padding="4,0" Margin="0" MinHeight="0" Height="26"
                         Cursor="Hand" />
-                <Button Grid.Column="3" Content="{Binding ModifiedHeader}"
+                <Button Grid.Row="0" Grid.Column="3" Content="{Binding ModifiedHeader}"
                         Command="{Binding SortByCommand}" CommandParameter="Modified"
                         Background="Transparent" BorderThickness="0"
                         Foreground="#8888aa" FontSize="11" FontWeight="SemiBold"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                         Padding="4,0" Margin="0" MinHeight="0" Height="26"
                         Cursor="Hand" />
-                <Button Grid.Column="4" Content="{Binding ExtHeader}"
+                <Button Grid.Row="0" Grid.Column="4" Content="{Binding ExtHeader}"
                         Command="{Binding SortByCommand}" CommandParameter="Ext"
                         Background="Transparent" BorderThickness="0"
                         Foreground="#8888aa" FontSize="11" FontWeight="SemiBold"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                         Padding="4,0" Margin="0" MinHeight="0" Height="26"
                         Cursor="Hand" />
+
+                <!-- Filter row -->
+                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5"
+                        IsVisible="{Binding IsFilterVisible}"
+                        Background="#12ffffff" Padding="4,2"
+                        BorderBrush="#10ffffff" BorderThickness="0,0,0,1">
+                    <TextBox Text="{Binding FilterText}"
+                             Watermark="&#xE721; Filter (Ctrl+F)..."
+                             Background="#10ffffff" BorderThickness="0"
+                             Foreground="#c0c0e0" FontSize="11"
+                             Padding="6,3" CornerRadius="3"
+                             x:Name="FilterBox" />
+                </Border>
             </Grid>
 
-            <!-- Quick filter -->
-            <Border DockPanel.Dock="Top" Background="#12ffffff" Padding="4,2"
-                    BorderBrush="#10ffffff" BorderThickness="0,0,0,1"
-                    IsVisible="{Binding IsFilterVisible}">
-                <TextBox Text="{Binding FilterText}"
-                         Watermark="&#xE721; Filter..."
-                         Background="#10ffffff" BorderThickness="0"
-                         Foreground="#c0c0e0" FontSize="11"
-                         Padding="6,3" CornerRadius="3"
-                         x:Name="FilterBox" />
-            </Border>
+            <!-- Main content: file list + optional preview -->
+            <Grid ColumnDefinitions="*,Auto">
+                <!-- File list (virtualized, multi-select) -->
+                <ListBox Grid.Column="0"
+                         ItemsSource="{Binding Items}"
+                         SelectedItem="{Binding SelectedItem}"
+                         SelectionChanged="FileGrid_SelectionChanged"
+                         DoubleTapped="DataGrid_DoubleTapped"
+                         SelectionMode="Multiple"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         DragDrop.AllowDrop="True"
+                         x:Name="FileGrid">
 
-            <!-- File list (virtualized) -->
-            <ListBox ItemsSource="{Binding Items}"
-                     SelectedItem="{Binding SelectedItem}"
-                     DoubleTapped="DataGrid_DoubleTapped"
-                     SelectionMode="Single"
-                     Background="Transparent"
-                     BorderThickness="0"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                     DragDrop.AllowDrop="True"
-                     x:Name="FileGrid">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Open"
+                                      Command="{Binding OpenCommand}"
+                                      CommandParameter="{Binding SelectedItem}"
+                                      InputGesture="Enter" />
+                            <Separator />
+                            <MenuItem Header="Cut"
+                                      Command="{Binding CutCommand}"
+                                      InputGesture="Ctrl+X" />
+                            <MenuItem Header="Copy"
+                                      Command="{Binding CopyCommand}"
+                                      InputGesture="Ctrl+C" />
+                            <MenuItem Header="Paste"
+                                      Command="{Binding PasteCommand}"
+                                      InputGesture="Ctrl+V" />
+                            <Separator />
+                            <MenuItem Header="Copy Path"
+                                      Command="{Binding CopyPathCommand}" />
+                            <Separator />
+                            <MenuItem Header="Rename"
+                                      Command="{Binding StartRenameCommand}"
+                                      InputGesture="F2" />
+                            <MenuItem Header="Delete"
+                                      Command="{Binding DeleteCommand}"
+                                      InputGesture="Delete" />
+                            <Separator />
+                            <MenuItem Header="New Folder"
+                                      Command="{Binding StartNewFolderCommand}" />
+                            <Separator />
+                            <MenuItem Header="Windows Shell Menu"
+                                      Click="ShellMenu_Click" />
+                            <Separator />
+                            <MenuItem Header="Open in Explorer"
+                                      Command="{Binding OpenInExplorerCommand}" />
+                            <MenuItem Header="Properties"
+                                      Command="{Binding ShowPropertiesCommand}" />
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
 
-                <ListBox.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Header="Open"
-                                  Command="{Binding OpenCommand}"
-                                  CommandParameter="{Binding SelectedItem}"
-                                  InputGesture="Enter" />
-                        <Separator />
-                        <MenuItem Header="Cut"
-                                  Command="{Binding CutCommand}"
-                                  InputGesture="Ctrl+X" />
-                        <MenuItem Header="Copy"
-                                  Command="{Binding CopyCommand}"
-                                  InputGesture="Ctrl+C" />
-                        <MenuItem Header="Paste"
-                                  Command="{Binding PasteCommand}"
-                                  InputGesture="Ctrl+V" />
-                        <Separator />
-                        <MenuItem Header="Copy Path"
-                                  Command="{Binding CopyPathCommand}" />
-                        <Separator />
-                        <MenuItem Header="Rename"
-                                  Command="{Binding StartRenameCommand}"
-                                  InputGesture="F2" />
-                        <MenuItem Header="Delete"
-                                  Command="{Binding DeleteCommand}"
-                                  InputGesture="Delete" />
-                        <Separator />
-                        <MenuItem Header="New Folder"
-                                  Command="{Binding StartNewFolderCommand}" />
-                        <Separator />
-                        <MenuItem Header="Windows Shell Menu"
-                                  Click="ShellMenu_Click" />
-                        <Separator />
-                        <MenuItem Header="Open in Explorer"
-                                  Command="{Binding OpenInExplorerCommand}" />
-                        <MenuItem Header="Properties"
-                                  Command="{Binding ShowPropertiesCommand}" />
-                    </ContextMenu>
-                </ListBox.ContextMenu>
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
 
-                <ListBox.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <VirtualizingStackPanel />
-                    </ItemsPanelTemplate>
-                </ListBox.ItemsPanel>
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0" />
+                            <Setter Property="MinHeight" Value="0" />
+                            <Setter Property="Height" Value="26" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="#252548" />
+                        </Style>
+                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                            <Setter Property="Background" Value="#1a3a5c" />
+                        </Style>
+                    </ListBox.Styles>
 
-                <ListBox.Styles>
-                    <Style Selector="ListBoxItem">
-                        <Setter Property="Padding" Value="0" />
-                        <Setter Property="Margin" Value="0" />
-                        <Setter Property="MinHeight" Value="0" />
-                        <Setter Property="Height" Value="26" />
-                        <Setter Property="Background" Value="Transparent" />
-                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                    </Style>
-                    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="#252548" />
-                    </Style>
-                    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                        <Setter Property="Background" Value="#1a3a5c" />
-                    </Style>
-                </ListBox.Styles>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:FileItem">
+                            <Grid ColumnDefinitions="28,3*,*,*,60" Height="26">
+                                <!-- Priority icon -->
+                                <Button Grid.Column="0"
+                                        Content="{Binding PriorityIcon}"
+                                        Command="{Binding $parent[views:FilePanelView].((vm:FilePanelViewModel)DataContext).CyclePriorityCommand}"
+                                        CommandParameter="{Binding}"
+                                        Background="Transparent" BorderThickness="0"
+                                        Padding="0" Margin="0"
+                                        MinWidth="0" MinHeight="0"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        FontSize="12" Cursor="Hand"
+                                        Opacity="{Binding Priority, Converter={x:Static conv:PriorityOpacityConverter.Instance}}" />
+                                <!-- Name + icon -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                            VerticalAlignment="Center" Margin="4,0">
+                                    <Image Source="{Binding Converter={StaticResource FileIconConverter}}"
+                                           Width="16" Height="16" Margin="0,0,6,0"
+                                           RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                               Foreground="#e0e0f0" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <!-- Size / child count -->
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding Converter={StaticResource FileSizeConverter}}"
+                                           VerticalAlignment="Center" Margin="4,0"
+                                           Foreground="#9999bb" FontSize="11" />
+                                <!-- Modified -->
+                                <TextBlock Grid.Column="3"
+                                           Text="{Binding LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
+                                           VerticalAlignment="Center" Margin="4,0"
+                                           Foreground="#9999bb" FontSize="11" />
+                                <!-- Ext -->
+                                <TextBlock Grid.Column="4"
+                                           Text="{Binding Extension}"
+                                           VerticalAlignment="Center" Margin="4,0"
+                                           Foreground="#9999bb" FontSize="11" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
 
-                <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="models:FileItem">
-                        <Grid ColumnDefinitions="28,3*,*,*,60" Height="26">
-                            <!-- Priority icon -->
-                            <Button Grid.Column="0"
-                                    Content="{Binding PriorityIcon}"
-                                    Command="{Binding $parent[views:FilePanelView].((vm:FilePanelViewModel)DataContext).CyclePriorityCommand}"
-                                    CommandParameter="{Binding}"
-                                    Background="Transparent" BorderThickness="0"
-                                    Padding="0" Margin="0"
-                                    MinWidth="0" MinHeight="0"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    FontSize="12" Cursor="Hand"
-                                    Opacity="{Binding Priority, Converter={x:Static conv:PriorityOpacityConverter.Instance}}" />
-                            <!-- Name + icon -->
-                            <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                        VerticalAlignment="Center" Margin="4,0">
-                                <Image Source="{Binding Converter={StaticResource FileIconConverter}}"
-                                       Width="16" Height="16" Margin="0,0,6,0"
-                                       RenderOptions.BitmapInterpolationMode="HighQuality" />
-                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
-                                           Foreground="#e0e0f0" FontSize="12"
-                                           TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-                            <!-- Size -->
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding Size, Converter={StaticResource FileSizeConverter}}"
-                                       VerticalAlignment="Center" Margin="4,0"
-                                       Foreground="#9999bb" FontSize="11" />
-                            <!-- Modified -->
-                            <TextBlock Grid.Column="3"
-                                       Text="{Binding LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
-                                       VerticalAlignment="Center" Margin="4,0"
-                                       Foreground="#9999bb" FontSize="11" />
-                            <!-- Ext -->
-                            <TextBlock Grid.Column="4"
-                                       Text="{Binding Extension}"
-                                       VerticalAlignment="Center" Margin="4,0"
-                                       Foreground="#9999bb" FontSize="11" />
-                        </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+                <!-- Preview pane -->
+                <Border Grid.Column="1" IsVisible="{Binding ShowPreview}"
+                        Width="220" Background="#0d0d1e"
+                        BorderBrush="#18ffffff" BorderThickness="1,0,0,0"
+                        Padding="8">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <!-- Preview image -->
+                            <Image Source="{Binding PreviewImage}"
+                                   IsVisible="{Binding PreviewImage, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                   MaxHeight="200" Stretch="Uniform"
+                                   Margin="0,0,0,8"
+                                   RenderOptions.BitmapInterpolationMode="HighQuality" />
+
+                            <!-- File info -->
+                            <TextBlock Text="{Binding PreviewName}"
+                                       Foreground="#d0d0f0" FontSize="12" FontWeight="SemiBold"
+                                       TextWrapping="Wrap" Margin="0,0,0,6" />
+                            <TextBlock Text="{Binding PreviewDetails}"
+                                       Foreground="#8888aa" FontSize="11"
+                                       TextWrapping="Wrap" Margin="0,0,0,6" />
+
+                            <!-- Text preview -->
+                            <TextBlock Text="{Binding PreviewText}"
+                                       IsVisible="{Binding PreviewText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                       Foreground="#9999bb" FontSize="10"
+                                       FontFamily="Consolas, Courier New"
+                                       TextWrapping="Wrap"
+                                       MaxHeight="300" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
         </DockPanel>
     </Border>
 </UserControl>

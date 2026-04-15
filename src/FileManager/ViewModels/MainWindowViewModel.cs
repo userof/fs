@@ -30,9 +30,6 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private ObservableCollection<StarredFileItem> _openedFiles = new();
 
-    public MainWindowViewModel()
-        : this(new FileSystemService(), new ProfileService(), new PriorityService()) { }
-
     public MainWindowViewModel(IFileSystemService fileSystemService, IProfileService profileService, IPriorityService priorityService)
     {
         _fileSystemService = fileSystemService;
@@ -100,18 +97,24 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (lastLevel != null && lastLevel.Panels.Count > 0)
         {
-            foreach (var existingPanel in lastLevel.Panels)
+            foreach (var existingTabPanel in lastLevel.Panels)
             {
-                var panel = new FilePanelViewModel(_fileSystemService, _priorityService);
-                panel.NavigateTo(existingPanel.CurrentPath);
-                level.Panels.Add(panel);
+                var tabPanel = new TabPanelViewModel(_fileSystemService, _priorityService);
+                // Clone all tabs from existing panel
+                foreach (var tab in existingTabPanel.Tabs)
+                {
+                    tabPanel.AddInitialTab(tab.CurrentPath);
+                }
+                if (tabPanel.Tabs.Count > 0)
+                    tabPanel.SelectedTab = tabPanel.Tabs[0];
+                level.Panels.Add(tabPanel);
             }
         }
         else
         {
-            var panel = new FilePanelViewModel(_fileSystemService, _priorityService);
-            panel.NavigateTo(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-            level.Panels.Add(panel);
+            var tabPanel = new TabPanelViewModel(_fileSystemService, _priorityService);
+            tabPanel.AddInitialTab(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            level.Panels.Add(tabPanel);
         }
 
         Levels.Add(level);
@@ -176,9 +179,9 @@ public partial class MainWindowViewModel : ViewModelBase
         else
         {
             var level = new LevelViewModel(_fileSystemService, _priorityService);
-            var panel = new FilePanelViewModel(_fileSystemService, _priorityService);
-            panel.NavigateTo(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-            level.Panels.Add(panel);
+            var tabPanel = new TabPanelViewModel(_fileSystemService, _priorityService);
+            tabPanel.AddInitialTab(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            level.Panels.Add(tabPanel);
             Levels.Add(level);
         }
     }
@@ -190,12 +193,12 @@ public partial class MainWindowViewModel : ViewModelBase
             Name = name,
             Levels = Levels.Select(l => new LevelState
             {
-                Panels = l.Panels.Select(p => new PanelState
+                Panels = l.Panels.Select(tp => new PanelState
                 {
-                    CurrentPath = p.CurrentPath,
-                    IsFilterVisible = p.IsFilterVisible,
-                    FilterText = p.FilterText,
-                    IsStatusBarVisible = p.IsStatusBarVisible
+                    CurrentPath = tp.CurrentPath,
+                    IsFilterVisible = tp.SelectedTab?.IsFilterVisible ?? false,
+                    FilterText = tp.SelectedTab?.FilterText ?? string.Empty,
+                    IsStatusBarVisible = tp.SelectedTab?.IsStatusBarVisible ?? false
                 }).ToList()
             }).ToList(),
             OpenedFiles = OpenedFiles.Select(f => f.FullPath).ToList()
@@ -212,23 +215,29 @@ public partial class MainWindowViewModel : ViewModelBase
 
             foreach (var panelState in levelState.Panels)
             {
-                var panel = new FilePanelViewModel(_fileSystemService, _priorityService);
+                var tabPanel = new TabPanelViewModel(_fileSystemService, _priorityService);
                 var path = panelState.CurrentPath;
                 if (!_fileSystemService.DirectoryExists(path))
                     path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-                panel.NavigateTo(path);
-                panel.IsFilterVisible = panelState.IsFilterVisible;
-                panel.FilterText = panelState.FilterText;
-                panel.IsStatusBarVisible = panelState.IsStatusBarVisible;
-                level.Panels.Add(panel);
+                tabPanel.AddInitialTab(path);
+
+                // Restore filter/statusbar state on the active tab
+                if (tabPanel.SelectedTab != null)
+                {
+                    tabPanel.SelectedTab.IsFilterVisible = panelState.IsFilterVisible;
+                    tabPanel.SelectedTab.FilterText = panelState.FilterText;
+                    tabPanel.SelectedTab.IsStatusBarVisible = panelState.IsStatusBarVisible;
+                }
+
+                level.Panels.Add(tabPanel);
             }
 
             if (level.Panels.Count == 0)
             {
-                var panel = new FilePanelViewModel(_fileSystemService, _priorityService);
-                panel.NavigateTo(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-                level.Panels.Add(panel);
+                var tabPanel = new TabPanelViewModel(_fileSystemService, _priorityService);
+                tabPanel.AddInitialTab(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+                level.Panels.Add(tabPanel);
             }
 
             Levels.Add(level);
