@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -50,10 +51,20 @@ public partial class TabPanelViewModel : ViewModelBase
             SelectedTab = tab;
     }
 
+    /// <summary>Fired when the last tab is closed — the parent level should remove this panel.</summary>
+    public event Action<TabPanelViewModel>? LastTabClosed;
+
     [RelayCommand]
     private void CloseTab(FilePanelViewModel? tab)
     {
-        if (tab == null || Tabs.Count <= 1) return;
+        if (tab == null) return;
+
+        // Last tab — request panel removal from parent level
+        if (Tabs.Count <= 1)
+        {
+            LastTabClosed?.Invoke(this);
+            return;
+        }
 
         var idx = Tabs.IndexOf(tab);
         Tabs.Remove(tab);

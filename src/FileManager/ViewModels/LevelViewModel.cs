@@ -24,10 +24,9 @@ public partial class LevelViewModel : ViewModelBase
     [RelayCommand]
     private void AddPanel()
     {
-        var tabPanel = new TabPanelViewModel(_fileSystemService, _priorityService);
-        var lastPath = Panels.LastOrDefault()?.CurrentPath;
-        tabPanel.AddInitialTab(lastPath ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-        Panels.Add(tabPanel);
+        var lastPath = Panels.LastOrDefault()?.CurrentPath
+            ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        AddTabPanelWithPath(lastPath);
     }
 
     [RelayCommand]
@@ -35,5 +34,14 @@ public partial class LevelViewModel : ViewModelBase
     {
         if (panel != null && Panels.Count > 1)
             Panels.Remove(panel);
+    }
+
+    public TabPanelViewModel AddTabPanelWithPath(string path)
+    {
+        var tabPanel = new TabPanelViewModel(_fileSystemService, _priorityService);
+        tabPanel.LastTabClosed += p => RemovePanel(p);
+        tabPanel.AddInitialTab(path);
+        Panels.Add(tabPanel);
+        return tabPanel;
     }
 }
